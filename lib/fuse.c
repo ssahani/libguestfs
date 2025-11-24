@@ -131,29 +131,23 @@ mount_local_readdir (const char *path, void *buf, fuse_fill_dir_t filler,
   if (ents == NULL)
     RETURN_ERRNO;
 
-  for (i = 0; i < ents->len; ++i) {
-    struct stat stat;
-    memset (&stat, 0, sizeof stat);
-
-    stat.st_ino = ents->val[i].ino;
-    switch (ents->val[i].ftyp) {
-    case 'b': stat.st_mode = S_IFBLK; break;
-    case 'c': stat.st_mode = S_IFCHR; break;
-    case 'd': stat.st_mode = S_IFDIR; break;
-    case 'f': stat.st_mode = S_IFIFO; break;
-    case 'l': stat.st_mode = S_IFLNK; break;
-    case 'r': stat.st_mode = S_IFREG; break;
-    case 's': stat.st_mode = S_IFSOCK; break;
-    case 'u':
-    case '?':
-    default:  stat.st_mode = 0;
-    }
-
+  for (size_t i = 0; i < ents->len; ++i) {
+   struct stat st = (struct stat){
+    .st_ino = ents->val[i].ino,
+    .st_mode =
+      ents->val[i].ftyp == 'b' ? S_IFBLK  :
+      ents->val[i].ftyp == 'c' ? S_IFCHR  :
+      ents->val[i].ftyp == 'd' ? S_IFDIR  :
+      ents->val[i].ftyp == 'f' ? S_IFIFO  :
+      ents->val[i].ftyp == 'l' ? S_IFLNK  :
+      ents->val[i].ftyp == 'r' ? S_IFREG  :
+      ents->val[i].ftyp == 's' ? S_IFSOCK : 0
+   };
     /* Copied from the example, which also ignores 'offset'.  I'm
      * not quite sure how this is ever supposed to work on large
      * directories. XXX
      */
-    if (filler (buf, ents->val[i].name, &stat, 0))
+    if (filler (buf, ents->val[i].name, &st, 0))
       break;
   }
 
