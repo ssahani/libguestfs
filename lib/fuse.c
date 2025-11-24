@@ -166,36 +166,38 @@ mount_local_readdir (const char *path, void *buf, fuse_fill_dir_t filler,
 
     ss = guestfs_lstatnslist (g, path, names);
     if (ss) {
-      for (i = 0; i < ss->len; ++i) {
-        if (ss->val[i].st_ino >= 0) {
-          struct stat statbuf;
+      for (size_t i = 0; i < ss->len; ++i) {
+        const struct guestfs_statns *s = &ss->val[i];
 
-          memset (&statbuf, 0, sizeof statbuf);
-          statbuf.st_dev = ss->val[i].st_dev;
-          statbuf.st_ino = ss->val[i].st_ino;
-          statbuf.st_mode = ss->val[i].st_mode;
-          statbuf.st_nlink = ss->val[i].st_nlink;
-          statbuf.st_uid = ss->val[i].st_uid;
-          statbuf.st_gid = ss->val[i].st_gid;
-          statbuf.st_rdev = ss->val[i].st_rdev;
-          statbuf.st_size = ss->val[i].st_size;
-          statbuf.st_blksize = ss->val[i].st_blksize;
-          statbuf.st_blocks = ss->val[i].st_blocks;
-          statbuf.st_atime = ss->val[i].st_atime_sec;
+        if (s->st_ino < 0)
+          continue;
+
+        struct stat st = (struct stat){
+          .st_dev      = s->st_dev,
+          .st_ino      = s->st_ino,
+          .st_mode     = s->st_mode,
+          .st_nlink    = s->st_nlink,
+          .st_uid      = s->st_uid,
+          .st_gid      = s->st_gid,
+          .st_rdev     = s->st_rdev,
+          .st_size     = s->st_size,
+          .st_blksize  = s->st_blksize,
+          .st_blocks   = s->st_blocks,
+          .st_atime    = s->st_atime_sec,
+          .st_mtime    = s->st_mtime_sec,
+          .st_ctime    = s->st_ctime_sec,
 #ifdef HAVE_STRUCT_STAT_ST_ATIM_TV_NSEC
-          statbuf.st_atim.tv_nsec = ss->val[i].st_atime_nsec;
+          .st_atim.tv_nsec = s->st_atime_nsec,
 #endif
-          statbuf.st_mtime = ss->val[i].st_mtime_sec;
 #ifdef HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
-          statbuf.st_mtim.tv_nsec = ss->val[i].st_mtime_nsec;
+          .st_mtim.tv_nsec = s->st_mtime_nsec,
 #endif
-          statbuf.st_ctime = ss->val[i].st_ctime_sec;
 #ifdef HAVE_STRUCT_STAT_ST_CTIM_TV_NSEC
-          statbuf.st_ctim.tv_nsec = ss->val[i].st_ctime_nsec;
+          .st_ctim.tv_nsec = s->st_ctime_nsec,
 #endif
+        };
 
-          lsc_insert (g, path, names[i], now, &statbuf);
-        }
+        lsc_insert (g, path, names[i], now, &st);
       }
     }
 
