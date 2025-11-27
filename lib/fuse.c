@@ -131,29 +131,24 @@ mount_local_readdir (const char *path, void *buf, fuse_fill_dir_t filler,
   if (ents == NULL)
     RETURN_ERRNO;
 
-  for (i = 0; i < ents->len; ++i) {
-    struct stat stat;
-    memset (&stat, 0, sizeof stat);
+  for (size_t i = 0; i < ents->len; ++i) {
+    struct guestfs_dirent *ent = &ents->val[i];
 
-    stat.st_ino = ents->val[i].ino;
-    switch (ents->val[i].ftyp) {
-    case 'b': stat.st_mode = S_IFBLK; break;
-    case 'c': stat.st_mode = S_IFCHR; break;
-    case 'd': stat.st_mode = S_IFDIR; break;
-    case 'f': stat.st_mode = S_IFIFO; break;
-    case 'l': stat.st_mode = S_IFLNK; break;
-    case 'r': stat.st_mode = S_IFREG; break;
-    case 's': stat.st_mode = S_IFSOCK; break;
-    case 'u':
-    case '?':
-    default:  stat.st_mode = 0;
-    }
-
+    struct stat st = {
+        .st_ino = ent->ino,
+        .st_mode = (ent->ftyp == 'b' ? S_IFBLK :
+                    ent->ftyp == 'c' ? S_IFCHR :
+                    ent->ftyp == 'd' ? S_IFDIR :
+                    ent->ftyp == 'f' ? S_IFIFO :
+                    ent->ftyp == 'l' ? S_IFLNK :
+                    ent->ftyp == 'r' ? S_IFREG :
+                    ent->ftyp == 's' ? S_IFSOCK : 0)
+    };
     /* Copied from the example, which also ignores 'offset'.  I'm
      * not quite sure how this is ever supposed to work on large
      * directories. XXX
      */
-    if (filler (buf, ents->val[i].name, &stat, 0))
+    if (filler (buf, ents->val[i].name, &st, 0))
       break;
   }
 
